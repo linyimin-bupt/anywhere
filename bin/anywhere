@@ -11,6 +11,8 @@ var serveStatic = require('serve-static');
 var serveIndex = require('serve-index');
 var fallback = require('connect-history-api-fallback');
 
+var contentDisposition = require('content-disposition')
+
 var debug = require('debug');
 debug.enable('anywhere');
 
@@ -92,6 +94,17 @@ app.use(function (req, res, next) {
   if (argv.log) {
     log(req.method + ' ' + req.url);
   }
+  if (req.url !== '/') {
+    const filePath = path.join(argv.dir, req.url)
+    if (fs.existsSync(filePath)) {
+      if (fs.statSync(filePath).isDirectory()) {
+        return next()
+      }
+      res.setHeader('Content-Disposition', contentDisposition(filePath))
+      const stream = fs.createReadStream(filePath)
+      stream.pipe(res)
+    }
+  } 
   next();
 });
 if (argv.fallback !== undefined) {
@@ -100,7 +113,7 @@ if (argv.fallback !== undefined) {
     index: argv.fallback || '/index.html'
   }));
 }
-app.use(serveStatic(argv.dir, { 'index': ['index.html'] }));
+app.use(serveStatic(argv.dir, { 'index': false }))
 app.use(serveIndex(argv.dir, { 'icons': true }));
 
 // anywhere 8888
